@@ -3,7 +3,6 @@ package com.example.chatbot.service;
 import com.example.chatbot.constant.Constant;
 import com.example.chatbot.dto.AnswerUser;
 import com.example.chatbot.dto.BmiRequest;
-import com.example.chatbot.dto.ResponseBmi;
 import com.example.chatbot.model.*;
 import com.example.chatbot.repository.*;
 import com.fasterxml.jackson.core.JsonParser;
@@ -132,15 +131,32 @@ public class ChatBotService {
 
     private String handleInput() {
         float maxCb = 0;
+        int countError = 0;
         CaseBase caseBase = new CaseBase();
         Stage stage = stageRepository.findByDescriptionContaining(answerUser.getStage());
+        if (stage == null) {
+            countError += 1;
+            stage = stageRepository.findById(1L).get();
+        }
         Bmi bmi = bmiRepository.findByValue(getBmi(new BmiRequest(answerUser.getSex(), answerUser.getAge(), answerUser.getWeight(), answerUser.getHeight())));
         ExerciseIntensity exerciseIntensity = exerciseIntensityRepository.findByDescriptionContaining(answerUser.getExerciseIntensity());
+        if (exerciseIntensity == null) {
+            countError += 1;
+            exerciseIntensity = exerciseIntensityRepository.findById(1L).get();
+        }
         Habit habit = habitRepository.findByDescriptionContaining(answerUser.getHabit());
-        if( habit == null){
-            habit = habitRepository.findById(Long.valueOf(4)).get();
+        if (habit == null) {
+            countError += 1;
+            habit = habitRepository.findById(4L).get();
         }
         OtherSport otherSport = otherSportRepository.findByDescriptionContaining(answerUser.getSport());
+        if (otherSport == null) {
+            countError += 1;
+            otherSport = otherSportRepository.findById(1L).get();
+        }
+        if(countError >=3){
+            return Constant.Question.NOT_ENOUGH_DATA;
+        }
         List<CaseBase> caseBaseList = (List<CaseBase>) caseBaseRepository.findAll();
         for (CaseBase cb : caseBaseList) {
             float valueStage = (6 * similarWeightsRepository.findByNameAndCaseFromIdAndCaseToId(Constant.NameElement.STAGE,
@@ -159,7 +175,10 @@ public class ChatBotService {
                 caseBase = cb;
             }
         }
-        return caseBase.getNutrition() + '\n' + "Cảm ơn bạn đã tham gia tư vấn!" ;
+        if (maxCb < 0.6) {
+            return Constant.Question.OVER;
+        }
+        return Constant.Question.RESULT + '\n' + caseBase.getNutrition() + '\n' + Constant.Question.TKS;
     }
 
 

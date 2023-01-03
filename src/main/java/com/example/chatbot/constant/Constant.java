@@ -10,7 +10,10 @@ public class Constant {
         public static final String EXERCISE_INTENSITY = "Bạn thường tập luyện với cường độ như thế nào?";
         public static final String HABIT = "Thói quen trong tập luyện của bạn thường là gì?";
         public static final String SPORT = "Ngoài tập luyện thể hình bạn còn chơi môn thể thao nào khác không?";
-        public static final String TKS = "Cảm ơn bạn đã tham gia buổi tư vấn của chúng tôi ngày hôm nay";
+        public static final String TKS = "Cảm ơn bạn đã tham gia buổi tư vấn của chúng tôi ngày hôm nay!";
+        public static final String OVER = "Bot không thể đưa ra lời khuyên cho bạn, thông tin quy khách cung cấp sẽ được cập nhật trong tương lai!";
+        public static final String RESULT = "Khẩu phần dinh dưỡng của bạn sẽ là: ";
+        public static final String NOT_ENOUGH_DATA = "Hệ thống không thể đưa ra lời khuyên vì chưa đủ dữ liệu";
     }
 
     public static class Command {
