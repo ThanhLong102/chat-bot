@@ -3,6 +3,7 @@ package com.example.chatbot.service;
 import com.example.chatbot.constant.Constant;
 import com.example.chatbot.dto.AnswerUser;
 import com.example.chatbot.dto.BmiRequest;
+import com.example.chatbot.dto.ResponseView;
 import com.example.chatbot.model.*;
 import com.example.chatbot.repository.*;
 import com.fasterxml.jackson.core.JsonParser;
@@ -47,6 +48,8 @@ public class ChatBotService {
 
     private Integer flap = -1;
 
+    private Integer flapStage = -1;
+
     public ChatBotService(Bot alice, StageRepository stageRepository, BmiRepository bmiRepository,
                           CaseBaseRepository caseBaseRepository, ExerciseIntensityRepository exerciseIntensityRepository,
                           HabitRepository habitRepository, OtherSportRepository otherSportRepository,
@@ -81,52 +84,153 @@ public class ChatBotService {
         answerUser = new AnswerUser();
     }
 
-    public String sendMessage(String text) {
+    public ResponseView sendMessage(String text) {
+        ResponseView responseView = new ResponseView();
         String response = text.toLowerCase();
+        if (response.equals(Constant.Command.END)) {
+            flap = -1;
+        }
+        // Check to start
         if (flap == -1) {
             if (Constant.Command.READY.equals(response)) {
                 init();
                 questionPre = questions.pop();
-                return Constant.Command.WELCOME + "\n" + questionPre;
+                responseView.setReply(Constant.Command.WELCOME + "\n" + questionPre);
+                return responseView;
             }
-            return Constant.Command.START;
-        } else if (flap == 0) {
+            responseView.setReply(Constant.Command.START);
+            return responseView;
+        }
+        // Question Info
+        else if (flap == 0) {
             switch (questionPre) {
                 case Constant.Question.STAGE:
+                    Stage stage = stageRepository.findByDescriptionContaining(response);
+                    if (stage == null) {
+                        if (flapStage == -1) {
+                            questionPre = Constant.Question.STAGE;
+                            flapStage = 0;
+                            responseView.setReply(Constant.Question.STAGE_SEASON);
+                            responseView.setIsYesNo(true);
+                            return responseView;
+                        } else if (flapStage == 0 && Constant.YesNo.YES.equals(response)) {
+                            response = "phục hồi";
+                        } else if (flapStage == 0 && Constant.YesNo.NO.equals(response)) {
+                            questionPre = Constant.Question.STAGE;
+                            flapStage = 1;
+                            responseView.setReply(Constant.Question.STAGE_OTHER);
+                            return responseView;
+                        } else if (flapStage == 1) {
+                            try {
+                                int month = Integer.parseInt(response);
+                                if (month > 3) {
+                                    response = "tăng cơ";
+                                } else if (month <= 3 && month > 0) {
+                                    response = "ăn kiêng";
+                                } else {
+                                    response = "thi đấu";
+                                }
+                            } catch (Exception e) {
+                                questionPre = Constant.Question.STAGE;
+                                responseView.setReply(Constant.Exception.ONLY_NUMBER);
+                                return responseView;
+                            }
+                        }
+                    }
+                    flapStage = -1;
                     answerUser.setStage(response);
                     break;
                 case Constant.Question.AGE:
-                    answerUser.setAge(Integer.parseInt(response));
+                    try {
+                        answerUser.setAge(Integer.parseInt(response));
+                    } catch (Exception e) {
+                        questionPre = Constant.Question.AGE;
+                        responseView.setReply(Constant.Exception.ONLY_NUMBER);
+                        return responseView;
+                    }
                     break;
                 case Constant.Question.SEX:
-                    answerUser.setSex(Integer.parseInt(response));
+                    try {
+                        answerUser.setSex(Integer.parseInt(response));
+                    } catch (Exception e) {
+                        questionPre = Constant.Question.SEX;
+                        responseView.setReply(Constant.Exception.ONLY_NUMBER);
+                        return responseView;
+                    }
                     break;
                 case Constant.Question.WEIGHT:
-                    answerUser.setWeight(Float.parseFloat(response));
+                    try {
+                        answerUser.setWeight(Float.parseFloat(response));
+                    } catch (Exception e) {
+                        questionPre = Constant.Question.WEIGHT;
+                        responseView.setReply(Constant.Exception.ONLY_NUMBER);
+                        return responseView;
+                    }
                     break;
                 case Constant.Question.HEIGHT:
-                    answerUser.setHeight(Integer.parseInt(response));
+                    try {
+                        answerUser.setHeight(Integer.parseInt(response));
+                    } catch (Exception e) {
+                        questionPre = Constant.Question.HEIGHT;
+                        responseView.setReply(Constant.Exception.ONLY_NUMBER);
+                        return responseView;
+                    }
                     break;
                 case Constant.Question.EXERCISE_INTENSITY:
                     answerUser.setExerciseIntensity(response);
                     break;
                 case Constant.Question.HABIT:
+                    if (Constant.YesNo.YES.equals(response)) {
+                        questionPre = Constant.Question.HABIT;
+                        responseView.setReply(Constant.Question.HABIT_DETAIL);
+                        return responseView;
+                    } else if (Constant.YesNo.NO.equals(response)) {
+                        response = "không";
+                    }
                     answerUser.setHabit(response);
                     break;
                 case Constant.Question.SPORT:
+                    if (Constant.YesNo.YES.equals(response)) {
+                        questionPre = Constant.Question.SPORT;
+                        responseView.setReply(Constant.Question.SPORT_DETAIL);
+                        return responseView;
+                    } else if (Constant.YesNo.NO.equals(response)) {
+                        response = "không";
+                    }
+                    questionPre = "";
                     answerUser.setSport(response);
                     break;
                 default:
                     break;
             }
+
+            // Confirm and Result
             if (questions.size() == 0) {
-                flap = -1;
-                return handleInput();
+                if (Constant.YesNo.YES.equals(response)) {
+                    responseView.setReply(handleInput());
+                    flap = -1;
+                    return responseView;
+                } else if (Constant.YesNo.NO.equals(response)) {
+                    flap = -1;
+                    responseView.setReply(Constant.Question.TKS);
+                    return responseView;
+                }
+                responseView.setReply(Constant.Question.INFO_USER + "\n" + changeInputToTable() + "\n" + Constant.Question.CONFIRM);
+                responseView.setIsYesNo(true);
+                return responseView;
             }
             questionPre = questions.peek();
-            return questions.pop();
+            if (questionPre.equals(Constant.Question.HABIT) || questionPre.equals(Constant.Question.SPORT)) {
+                responseView.setIsYesNo(true);
+            }
+            responseView.setReply(questions.pop());
+            return responseView;
         }
-        return "";
+        return responseView;
+    }
+
+    private String changeInputToTable() {
+        return answerUser.toString();
     }
 
     private String handleInput() {
@@ -154,7 +258,7 @@ public class ChatBotService {
             countError += 1;
             otherSport = otherSportRepository.findById(1L).get();
         }
-        if(countError >=3){
+        if (countError >= 3) {
             return Constant.Question.NOT_ENOUGH_DATA;
         }
         List<CaseBase> caseBaseList = (List<CaseBase>) caseBaseRepository.findAll();
@@ -175,7 +279,7 @@ public class ChatBotService {
                 caseBase = cb;
             }
         }
-        if (maxCb < 0.6) {
+        if (maxCb < 0.7) {
             return Constant.Question.OVER;
         }
         return Constant.Question.RESULT + '\n' + caseBase.getNutrition() + '\n' + Constant.Question.TKS;

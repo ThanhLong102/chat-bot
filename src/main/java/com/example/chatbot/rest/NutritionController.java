@@ -22,8 +22,7 @@ public class NutritionController {
 
     @GetMapping("/reply")
     public ResponseEntity<ResponseView> handleCustomMessage(@PathParam("message") String message) {
-        String reply = chatBotService.sendMessage(message);
-        ResponseView responseView = new ResponseView(reply);
+        ResponseView responseView = chatBotService.sendMessage(message);
         return ResponseEntity.status(HttpStatus.OK).body(responseView);
     }
 
